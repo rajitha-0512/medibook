@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Building2, Phone, MapPin, QrCode, Hash } from "lucide-react";
+import { ArrowLeft, Building2, Phone, MapPin, QrCode, Hash, Eye, EyeOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,14 @@ interface HospitalRegisterProps {
 }
 
 const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) => {
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     hospitalName: "",
     mobileNumber: "",
     hospitalCode: "",
     location: "",
     qrDetails: "",
+    password: "",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -149,6 +151,32 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 className="pl-12 min-h-[80px] bg-card border-border resize-none"
                 required
               />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-foreground font-medium">
+              Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Create a password"
+                value={formData.password}
+                onChange={handleChange}
+                className="pl-12 pr-12 h-12 bg-card border-border"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
