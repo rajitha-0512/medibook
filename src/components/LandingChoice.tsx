@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LandingChoiceProps {
-  onUserRegister: () => void;
-  onHospitalRegister: () => void;
+  onUserClick: () => void;
+  onHospitalClick: () => void;
 }
 
-const LandingChoice = ({ onUserRegister, onHospitalRegister }: LandingChoiceProps) => {
+const LandingChoice = ({ onUserClick, onHospitalClick }: LandingChoiceProps) => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,10 +80,10 @@ const LandingChoice = ({ onUserRegister, onHospitalRegister }: LandingChoiceProp
               variant="hero"
               size="xl"
               className="w-full flex items-center justify-center gap-4"
-              onClick={onUserRegister}
+              onClick={onUserClick}
             >
               <User className="w-6 h-6" />
-              <span className="text-xl font-bold">Register as a User</span>
+              <span className="text-xl font-bold">User</span>
             </Button>
           </motion.div>
 
@@ -96,10 +96,10 @@ const LandingChoice = ({ onUserRegister, onHospitalRegister }: LandingChoiceProp
               variant="heroOutline"
               size="xl"
               className="w-full flex items-center justify-center gap-4"
-              onClick={onHospitalRegister}
+              onClick={onHospitalClick}
             >
               <Building2 className="w-6 h-6" />
-              <span className="text-xl font-bold">Register as Hospital</span>
+              <span className="text-xl font-bold">Hospital</span>
             </Button>
           </motion.div>
         </div>
