@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Calendar, Clock, Search, MapPin, LogOut, Star, ChevronRight } from "lucide-react";
+import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import HospitalCarousel from "./HospitalCarousel";
 import HospitalSearch from "./HospitalSearch";
-import HospitalDetails from "./HospitalDetails";
-import BookingForm from "./BookingForm";
+import HospitalDetails, { Doctor } from "./HospitalDetails";
+import SlotSelection from "./SlotSelection";
+import QRPayment from "./QRPayment";
 import PaymentStatus from "./PaymentStatus";
 
 interface UserDashboardProps {
   onLogout: () => void;
 }
 
-type View = "dashboard" | "search" | "hospitalDetails" | "booking" | "payment";
+type View = "dashboard" | "search" | "hospitalDetails" | "slotSelection" | "payment" | "paymentStatus";
 
 interface Hospital {
   id: string;
@@ -25,11 +26,30 @@ interface Hospital {
   specialties: string[];
 }
 
+interface Slot {
+  id: string;
+  time: string;
+  date: string;
+  available: boolean;
+}
+
+interface BookingDetails {
+  doctorName: string;
+  specialization: string;
+  date: string;
+  time: string;
+  hospitalName: string;
+  fee: number;
+}
+
 const UserDashboard = ({ onLogout }: UserDashboardProps) => {
   const [view, setView] = useState<View>("dashboard");
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
 
   const userProfile = {
     name: "John Doe",
@@ -72,19 +92,38 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
     setView("hospitalDetails");
   };
 
-  const handleBooking = () => {
-    setView("booking");
+  const handleDoctorSelect = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setView("slotSelection");
   };
 
-  const handlePayment = (success: boolean) => {
-    setPaymentSuccess(success);
+  const handleSlotSelect = (slot: Slot) => {
+    setSelectedSlot(slot);
     setView("payment");
+  };
+
+  const handlePaymentComplete = (success: boolean) => {
+    setPaymentSuccess(success);
+    if (success && selectedDoctor && selectedSlot && selectedHospital) {
+      setBookingDetails({
+        doctorName: selectedDoctor.name,
+        specialization: selectedDoctor.specialization,
+        date: selectedSlot.date,
+        time: selectedSlot.time,
+        hospitalName: selectedHospital.name,
+        fee: selectedDoctor.fee,
+      });
+    }
+    setView("paymentStatus");
   };
 
   const resetToDashboard = () => {
     setView("dashboard");
     setSelectedHospital(null);
+    setSelectedDoctor(null);
+    setSelectedSlot(null);
     setPaymentSuccess(false);
+    setBookingDetails(null);
   };
 
   if (view === "search") {
@@ -101,38 +140,56 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
       <HospitalDetails
         hospital={selectedHospital}
         onBack={() => setView("dashboard")}
-        onRegister={handleBooking}
+        onDoctorSelect={handleDoctorSelect}
       />
     );
   }
 
-  if (view === "booking" && selectedHospital) {
+  if (view === "slotSelection" && selectedDoctor && selectedHospital) {
     return (
-      <BookingForm
-        hospital={selectedHospital}
+      <SlotSelection
+        doctor={selectedDoctor}
+        hospitalName={selectedHospital.name}
         onBack={() => setView("hospitalDetails")}
-        onSubmit={handlePayment}
+        onSlotSelect={handleSlotSelect}
       />
     );
   }
 
-  if (view === "payment") {
+  if (view === "payment" && selectedDoctor && selectedSlot && selectedHospital) {
+    return (
+      <QRPayment
+        doctor={selectedDoctor}
+        slot={selectedSlot}
+        hospitalName={selectedHospital.name}
+        onBack={() => setView("slotSelection")}
+        onPaymentComplete={handlePaymentComplete}
+      />
+    );
+  }
+
+  if (view === "paymentStatus") {
     return (
       <PaymentStatus
         success={paymentSuccess}
         onContinue={resetToDashboard}
+        bookingDetails={bookingDetails || undefined}
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header with Hospital Theme */}
       <motion.header
-        className="gradient-primary px-6 pt-12 pb-8 rounded-b-3xl"
+        className="gradient-primary px-6 pt-12 pb-8 rounded-b-3xl relative overflow-hidden"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
+        {/* Medical Cross Pattern */}
+        <div className="absolute top-4 right-4 opacity-20">
+          <Stethoscope className="w-20 h-20 text-primary-foreground" />
+        </div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-primary-foreground/80 text-sm">Welcome back,</p>
