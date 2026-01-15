@@ -11,7 +11,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const generateLogo = async () => {
+    const generateLogo = async (retries = 2) => {
       try {
         const { data, error } = await supabase.functions.invoke("generate-logo", {
           body: {
@@ -22,9 +22,18 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         if (error) throw error;
         if (data?.imageUrl) {
           setLogoUrl(data.imageUrl);
+        } else if (retries > 0) {
+          console.log("No image returned, retrying...", retries);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return generateLogo(retries - 1);
         }
       } catch (error) {
         console.error("Error generating logo:", error);
+        if (retries > 0) {
+          console.log("Error occurred, retrying...", retries);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return generateLogo(retries - 1);
+        }
       } finally {
         setIsLoading(false);
       }

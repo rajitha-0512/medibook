@@ -18,6 +18,10 @@ serve(async (req) => {
 
     const { prompt } = await req.json();
 
+    const defaultPrompt = "Generate a modern healthcare mobile app logo icon. Feature a stylized medical cross combined elegantly with a heart shape. Use a beautiful teal to cyan gradient. Ultra clean minimalist design with smooth curves. Square format, professional app icon style, centered on pure white background. No text, just the icon symbol.";
+
+    console.log("Calling AI gateway with prompt:", prompt || defaultPrompt);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -29,7 +33,7 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: prompt || "Generate a modern healthcare app logo with a medical cross integrated into a heart shape, using teal and cyan gradient colors. Clean minimalist design, professional app icon, white background."
+            content: prompt || defaultPrompt
           }
         ],
         modalities: ["image", "text"]
@@ -43,10 +47,19 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log("AI gateway response structure:", JSON.stringify({
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      hasMessage: !!data.choices?.[0]?.message,
+      hasImages: !!data.choices?.[0]?.message?.images,
+      imagesLength: data.choices?.[0]?.message?.images?.length,
+    }));
+
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
     if (!imageUrl) {
-      throw new Error("No image generated");
+      console.error("Full response:", JSON.stringify(data));
+      throw new Error("No image generated - API response did not contain an image");
     }
 
     return new Response(JSON.stringify({ imageUrl }), {
