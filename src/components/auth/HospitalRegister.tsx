@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { HospitalProfile } from "@/types/user";
 import logo from "@/assets/logo.png";
 
 interface HospitalRegisterProps {
   onBack: () => void;
-  onRegisterSuccess: () => void;
+  onRegisterSuccess: (hospitalData: HospitalProfile) => void;
 }
 
 const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) => {
@@ -31,7 +32,13 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (Object.values(formData).every((val) => val.trim() !== "")) {
-      onRegisterSuccess();
+      onRegisterSuccess({
+        hospitalName: formData.hospitalName,
+        mobileNumber: formData.mobileNumber,
+        hospitalCode: formData.hospitalCode,
+        location: formData.location,
+        qrDetails: formData.qrDetails,
+      });
     }
   };
 

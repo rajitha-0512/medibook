@@ -4,18 +4,25 @@ import {
   Building2,
   Users,
   Calendar,
-  Settings,
   Plus,
   Star,
   Clock,
   Bell,
   LogOut,
-  ChevronRight,
   AlertTriangle,
+  Phone,
+  MapPin,
+  Hash,
+  QrCode,
+  Edit2,
+  Save,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -30,9 +37,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+import { HospitalProfile } from "@/types/user";
 
 interface HospitalDashboardProps {
   onLogout: () => void;
+  hospitalProfile: HospitalProfile;
+  onProfileUpdate: (profile: HospitalProfile) => void;
 }
 
 interface Doctor {
@@ -64,8 +75,11 @@ interface Appointment {
   status: "pending" | "confirmed" | "delayed" | "completed";
 }
 
-const HospitalDashboard = ({ onLogout }: HospitalDashboardProps) => {
+const HospitalDashboard = ({ onLogout, hospitalProfile, onProfileUpdate }: HospitalDashboardProps) => {
   const [activeTab, setActiveTab] = useState<"doctors" | "appointments" | "slots">("doctors");
+  const [showProfile, setShowProfile] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editedProfile, setEditedProfile] = useState<HospitalProfile>(hospitalProfile);
   const [doctors, setDoctors] = useState<Doctor[]>([
     {
       id: "1",
@@ -139,7 +153,19 @@ const HospitalDashboard = ({ onLogout }: HospitalDashboardProps) => {
   };
 
   const notifyPatient = (appointment: Appointment) => {
-    alert(`Notification sent to ${appointment.patientName} about delay for ${appointment.doctor} appointment at ${appointment.time}`);
+    toast.info(`Notification sent to ${appointment.patientName} about delay`);
+  };
+
+  const handleSaveProfile = () => {
+    onProfileUpdate(editedProfile);
+    setShowEditProfile(false);
+    setShowProfile(false);
+    toast.success("Hospital profile updated successfully");
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'H';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   const totalSlots = doctors.reduce((acc, doc) => acc + doc.slots.length, 0);
@@ -154,9 +180,18 @@ const HospitalDashboard = ({ onLogout }: HospitalDashboardProps) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-primary-foreground/80 text-sm">Hospital Dashboard</p>
-            <h1 className="text-2xl font-bold text-primary-foreground">Apollo Hospital</h1>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowProfile(!showProfile)}>
+              <Avatar className="w-12 h-12 border-2 border-primary-foreground/30">
+                <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-bold">
+                  {getInitials(hospitalProfile.hospitalName)}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+            <div>
+              <p className="text-primary-foreground/80 text-sm">Hospital Dashboard</p>
+              <h1 className="text-xl font-bold text-primary-foreground">{hospitalProfile.hospitalName || "Hospital"}</h1>
+            </div>
           </div>
           <button
             onClick={onLogout}
@@ -182,6 +217,158 @@ const HospitalDashboard = ({ onLogout }: HospitalDashboardProps) => {
           </div>
         </div>
       </motion.header>
+
+      {/* Profile Dropdown */}
+      <AnimatePresence>
+        {showProfile && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowProfile(false)}
+            />
+            <motion.div
+              className="absolute left-6 top-24 bg-card rounded-2xl shadow-2xl w-80 z-50 border border-border overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            >
+              {/* Profile Header */}
+              <div className="gradient-primary p-4 relative">
+                <button
+                  onClick={() => setShowProfile(false)}
+                  className="absolute top-2 right-2 p-1 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+                >
+                  <X className="w-4 h-4 text-primary-foreground" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-14 h-14 border-2 border-primary-foreground/30">
+                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-bold text-lg">
+                      {getInitials(hospitalProfile.hospitalName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-primary-foreground">{hospitalProfile.hospitalName || "Hospital"}</p>
+                    <span className="text-xs text-primary-foreground/70 bg-primary-foreground/20 px-2 py-0.5 rounded-full">
+                      {hospitalProfile.hospitalCode || "Code not set"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Profile Details */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Phone className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-muted-foreground">{hospitalProfile.mobileNumber || "Not set"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-muted-foreground">{hospitalProfile.location || "Not set"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Hash className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-muted-foreground">{hospitalProfile.hospitalCode || "Not set"}</span>
+                </div>
+                {hospitalProfile.qrDetails && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <QrCode className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground truncate">{hospitalProfile.qrDetails}</span>
+                  </div>
+                )}
+                
+                <div className="pt-2 space-y-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setEditedProfile(hospitalProfile);
+                      setShowEditProfile(true);
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                  <Button variant="destructive" size="sm" className="w-full" onClick={onLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+        <DialogContent className="bg-card max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              Edit Hospital Profile
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Hospital Name</Label>
+              <Input
+                value={editedProfile.hospitalName}
+                onChange={(e) => setEditedProfile({ ...editedProfile, hospitalName: e.target.value })}
+                placeholder="Enter hospital name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mobile Number</Label>
+              <Input
+                value={editedProfile.mobileNumber}
+                onChange={(e) => setEditedProfile({ ...editedProfile, mobileNumber: e.target.value })}
+                placeholder="Enter mobile number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Hospital Code</Label>
+              <Input
+                value={editedProfile.hospitalCode}
+                onChange={(e) => setEditedProfile({ ...editedProfile, hospitalCode: e.target.value })}
+                placeholder="Enter hospital code"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Input
+                value={editedProfile.location}
+                onChange={(e) => setEditedProfile({ ...editedProfile, location: e.target.value })}
+                placeholder="Enter hospital address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>QR Payment Details</Label>
+              <Textarea
+                value={editedProfile.qrDetails}
+                onChange={(e) => setEditedProfile({ ...editedProfile, qrDetails: e.target.value })}
+                placeholder="Enter UPI ID or payment details"
+                className="resize-none"
+              />
+            </div>
+            <Button variant="hero" className="w-full" onClick={handleSaveProfile}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabs */}
       <div className="flex border-b border-border bg-card sticky top-0 z-10">
