@@ -10,6 +10,7 @@ import HospitalSignIn from "@/components/auth/HospitalSignIn";
 import HospitalRegister from "@/components/auth/HospitalRegister";
 import UserDashboard from "@/components/dashboard/UserDashboard";
 import HospitalDashboard from "@/components/dashboard/HospitalDashboard";
+import { UserProfile, HospitalProfile } from "@/types/user";
 
 type Screen =
   | "splash"
@@ -25,6 +26,8 @@ type Screen =
 
 const Index = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>("splash");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [hospitalProfile, setHospitalProfile] = useState<HospitalProfile | null>(null);
 
   const handleSplashComplete = () => {
     setCurrentScreen("choice");
@@ -54,15 +57,40 @@ const Index = () => {
     setCurrentScreen("hospitalRegister");
   };
 
-  const handleUserAuthSuccess = () => {
+  const handleUserAuthSuccess = (userData?: UserProfile) => {
+    if (userData) {
+      setUserProfile(userData);
+    } else {
+      // For sign in, set default profile (in real app, fetch from backend)
+      setUserProfile({
+        name: "User",
+        age: "",
+        gender: "",
+        phone: "",
+      });
+    }
     setCurrentScreen("userDashboard");
   };
 
-  const handleHospitalAuthSuccess = () => {
+  const handleHospitalAuthSuccess = (hospitalData?: HospitalProfile) => {
+    if (hospitalData) {
+      setHospitalProfile(hospitalData);
+    } else {
+      // For sign in, set default profile (in real app, fetch from backend)
+      setHospitalProfile({
+        hospitalName: "Hospital",
+        mobileNumber: "",
+        hospitalCode: "",
+        location: "",
+        qrDetails: "",
+      });
+    }
     setCurrentScreen("hospitalDashboard");
   };
 
   const handleLogout = () => {
+    setUserProfile(null);
+    setHospitalProfile(null);
     setCurrentScreen("choice");
   };
 
@@ -76,6 +104,14 @@ const Index = () => {
 
   const handleBackToHospitalAuth = () => {
     setCurrentScreen("hospitalAuthChoice");
+  };
+
+  const handleUserProfileUpdate = (updatedProfile: UserProfile) => {
+    setUserProfile(updatedProfile);
+  };
+
+  const handleHospitalProfileUpdate = (updatedProfile: HospitalProfile) => {
+    setHospitalProfile(updatedProfile);
   };
 
   return (
@@ -106,7 +142,7 @@ const Index = () => {
           <UserSignIn
             key="userSignIn"
             onBack={handleBackToUserAuth}
-            onSignInSuccess={handleUserAuthSuccess}
+            onSignInSuccess={() => handleUserAuthSuccess()}
           />
         )}
 
@@ -114,7 +150,7 @@ const Index = () => {
           <UserRegister
             key="userRegister"
             onBack={handleBackToUserAuth}
-            onRegisterSuccess={handleUserAuthSuccess}
+            onRegisterSuccess={(userData) => handleUserAuthSuccess(userData)}
           />
         )}
 
@@ -131,7 +167,7 @@ const Index = () => {
           <HospitalSignIn
             key="hospitalSignIn"
             onBack={handleBackToHospitalAuth}
-            onSignInSuccess={handleHospitalAuthSuccess}
+            onSignInSuccess={() => handleHospitalAuthSuccess()}
           />
         )}
 
@@ -139,16 +175,26 @@ const Index = () => {
           <HospitalRegister
             key="hospitalRegister"
             onBack={handleBackToHospitalAuth}
-            onRegisterSuccess={handleHospitalAuthSuccess}
+            onRegisterSuccess={(hospitalData) => handleHospitalAuthSuccess(hospitalData)}
           />
         )}
 
-        {currentScreen === "userDashboard" && (
-          <UserDashboard key="userDashboard" onLogout={handleLogout} />
+        {currentScreen === "userDashboard" && userProfile && (
+          <UserDashboard
+            key="userDashboard"
+            onLogout={handleLogout}
+            userProfile={userProfile}
+            onProfileUpdate={handleUserProfileUpdate}
+          />
         )}
 
-        {currentScreen === "hospitalDashboard" && (
-          <HospitalDashboard key="hospitalDashboard" onLogout={handleLogout} />
+        {currentScreen === "hospitalDashboard" && hospitalProfile && (
+          <HospitalDashboard
+            key="hospitalDashboard"
+            onLogout={handleLogout}
+            hospitalProfile={hospitalProfile}
+            onProfileUpdate={handleHospitalProfileUpdate}
+          />
         )}
       </AnimatePresence>
     </div>

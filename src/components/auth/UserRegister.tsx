@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserProfile } from "@/types/user";
 import logo from "@/assets/logo.png";
 
 interface UserRegisterProps {
   onBack: () => void;
-  onRegisterSuccess: () => void;
+  onRegisterSuccess: (userData: UserProfile) => void;
 }
 
 const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
@@ -43,7 +44,12 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (Object.values(formData).every((val) => val.trim() !== "")) {
-      onRegisterSuccess();
+      onRegisterSuccess({
+        name: formData.name,
+        age: formData.age,
+        gender: formData.gender,
+        phone: formData.phone,
+      });
     }
   };
 

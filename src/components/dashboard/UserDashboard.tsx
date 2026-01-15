@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope, X, Phone, Mail, Edit2 } from "lucide-react";
+import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope, X, Phone, Mail, Edit2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +16,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { UserProfile } from "@/types/user";
 import HospitalCarousel from "./HospitalCarousel";
 import HospitalSearch from "./HospitalSearch";
 import HospitalDetails, { Doctor } from "./HospitalDetails";
@@ -24,6 +33,8 @@ import PaymentStatus from "./PaymentStatus";
 
 interface UserDashboardProps {
   onLogout: () => void;
+  userProfile: UserProfile;
+  onProfileUpdate: (profile: UserProfile) => void;
 }
 
 type View = "dashboard" | "search" | "hospitalDetails" | "slotSelection" | "payment" | "paymentStatus";
@@ -63,13 +74,15 @@ interface CurrentBooking {
   status: string;
 }
 
-const UserDashboard = ({ onLogout }: UserDashboardProps) => {
+const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboardProps) => {
   const [view, setView] = useState<View>("dashboard");
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editedProfile, setEditedProfile] = useState<UserProfile>(userProfile);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
   const [currentBookings, setCurrentBookings] = useState<CurrentBooking[]>([
@@ -82,13 +95,6 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
       status: "confirmed",
     },
   ]);
-
-  const userProfile = {
-    name: "John Doe",
-    phone: "+91 9876543210",
-    email: "john@example.com",
-    avatar: "",
-  };
 
   const recentBookings = [
     {
@@ -113,6 +119,13 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
     setCurrentBookings(prev => prev.filter(b => b.id !== bookingId));
     setCancelBookingId(null);
     toast.success("Booking cancelled successfully");
+  };
+
+  const handleSaveProfile = () => {
+    onProfileUpdate(editedProfile);
+    setShowEditProfile(false);
+    setShowProfile(false);
+    toast.success("Profile updated successfully");
   };
 
   const handleHospitalSelect = (hospital: Hospital) => {
@@ -152,6 +165,11 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
     setSelectedSlot(null);
     setPaymentSuccess(false);
     setBookingDetails(null);
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
   if (view === "search") {
@@ -221,7 +239,7 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-primary-foreground/80 text-sm">Welcome back,</p>
-            <h1 className="text-2xl font-bold text-primary-foreground">{userProfile.name}</h1>
+            <h1 className="text-2xl font-bold text-primary-foreground">{userProfile.name || "User"}</h1>
           </div>
           <button
             onClick={() => setShowProfile(!showProfile)}
@@ -230,7 +248,7 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
             <Avatar className="w-12 h-12 border-2 border-primary-foreground/30 shadow-lg">
               <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
               <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-semibold">
-                {userProfile.name.split(' ').map(n => n[0]).join('')}
+                {getInitials(userProfile.name)}
               </AvatarFallback>
             </Avatar>
             <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-primary"></span>
@@ -278,11 +296,11 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
                   <Avatar className="w-14 h-14 border-2 border-primary-foreground/30">
                     <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
                     <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-bold text-lg">
-                      {userProfile.name.split(' ').map(n => n[0]).join('')}
+                      {getInitials(userProfile.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-primary-foreground">{userProfile.name}</p>
+                    <p className="font-semibold text-primary-foreground">{userProfile.name || "User"}</p>
                     <span className="text-xs text-primary-foreground/70 bg-primary-foreground/20 px-2 py-0.5 rounded-full">
                       Patient
                     </span>
@@ -296,17 +314,35 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <Phone className="w-4 h-4 text-primary" />
                   </div>
-                  <span className="text-muted-foreground">{userProfile.phone}</span>
+                  <span className="text-muted-foreground">{userProfile.phone || "Not set"}</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Mail className="w-4 h-4 text-primary" />
+                {userProfile.age && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground">{userProfile.age} years old • {userProfile.gender}</span>
                   </div>
-                  <span className="text-muted-foreground">{userProfile.email}</span>
-                </div>
+                )}
+                {userProfile.email && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground">{userProfile.email}</span>
+                  </div>
+                )}
                 
                 <div className="pt-2 space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setEditedProfile(userProfile);
+                      setShowEditProfile(true);
+                    }}
+                  >
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -320,6 +356,74 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
+        <DialogContent className="bg-card max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              Edit Profile
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Full Name</Label>
+              <Input
+                value={editedProfile.name}
+                onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
+                placeholder="Enter your name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Age</Label>
+              <Input
+                type="number"
+                value={editedProfile.age}
+                onChange={(e) => setEditedProfile({ ...editedProfile, age: e.target.value })}
+                placeholder="Enter your age"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Gender</Label>
+              <Select 
+                value={editedProfile.gender} 
+                onValueChange={(value) => setEditedProfile({ ...editedProfile, gender: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <Input
+                value={editedProfile.phone}
+                onChange={(e) => setEditedProfile({ ...editedProfile, phone: e.target.value })}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (Optional)</Label>
+              <Input
+                type="email"
+                value={editedProfile.email || ""}
+                onChange={(e) => setEditedProfile({ ...editedProfile, email: e.target.value })}
+                placeholder="Enter email address"
+              />
+            </div>
+            <Button variant="hero" className="w-full" onClick={handleSaveProfile}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Booking Confirmation Dialog */}
       <AlertDialog open={!!cancelBookingId} onOpenChange={() => setCancelBookingId(null)}>
