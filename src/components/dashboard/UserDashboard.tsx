@@ -1,8 +1,20 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope, X, Phone, Mail, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import HospitalCarousel from "./HospitalCarousel";
 import HospitalSearch from "./HospitalSearch";
 import HospitalDetails, { Doctor } from "./HospitalDetails";
@@ -42,6 +54,15 @@ interface BookingDetails {
   fee: number;
 }
 
+interface CurrentBooking {
+  id: string;
+  hospital: string;
+  doctor: string;
+  date: string;
+  time: string;
+  status: string;
+}
+
 const UserDashboard = ({ onLogout }: UserDashboardProps) => {
   const [view, setView] = useState<View>("dashboard");
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
@@ -50,14 +71,8 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
-
-  const userProfile = {
-    name: "John Doe",
-    phone: "+91 9876543210",
-    email: "john@example.com",
-  };
-
-  const currentBookings = [
+  const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
+  const [currentBookings, setCurrentBookings] = useState<CurrentBooking[]>([
     {
       id: "1",
       hospital: "Apollo Hospital",
@@ -66,7 +81,14 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
       time: "10:30 AM",
       status: "confirmed",
     },
-  ];
+  ]);
+
+  const userProfile = {
+    name: "John Doe",
+    phone: "+91 9876543210",
+    email: "john@example.com",
+    avatar: "",
+  };
 
   const recentBookings = [
     {
@@ -86,6 +108,12 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
       status: "completed",
     },
   ];
+
+  const handleCancelBooking = (bookingId: string) => {
+    setCurrentBookings(prev => prev.filter(b => b.id !== bookingId));
+    setCancelBookingId(null);
+    toast.success("Booking cancelled successfully");
+  };
 
   const handleHospitalSelect = (hospital: Hospital) => {
     setSelectedHospital(hospital);
@@ -197,9 +225,15 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
           </div>
           <button
             onClick={() => setShowProfile(!showProfile)}
-            className="w-12 h-12 rounded-full bg-primary-foreground/20 flex items-center justify-center"
+            className="relative"
           >
-            <User className="w-6 h-6 text-primary-foreground" />
+            <Avatar className="w-12 h-12 border-2 border-primary-foreground/30 shadow-lg">
+              <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
+              <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-semibold">
+                {userProfile.name.split(' ').map(n => n[0]).join('')}
+              </AvatarFallback>
+            </Avatar>
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-primary"></span>
           </button>
         </div>
 
@@ -215,29 +249,98 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
       </motion.header>
 
       {/* Profile Dropdown */}
-      {showProfile && (
-        <motion.div
-          className="absolute right-6 top-24 bg-card rounded-xl shadow-xl p-4 w-64 z-50 border border-border"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-        >
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center">
-                <User className="w-6 h-6 text-primary-foreground" />
+      <AnimatePresence>
+        {showProfile && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="fixed inset-0 z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowProfile(false)}
+            />
+            <motion.div
+              className="absolute right-6 top-24 bg-card rounded-2xl shadow-2xl w-72 z-50 border border-border overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            >
+              {/* Profile Header */}
+              <div className="gradient-primary p-4 relative">
+                <button
+                  onClick={() => setShowProfile(false)}
+                  className="absolute top-2 right-2 p-1 rounded-full bg-primary-foreground/20 hover:bg-primary-foreground/30 transition-colors"
+                >
+                  <X className="w-4 h-4 text-primary-foreground" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-14 h-14 border-2 border-primary-foreground/30">
+                    <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
+                    <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground font-bold text-lg">
+                      {userProfile.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-primary-foreground">{userProfile.name}</p>
+                    <span className="text-xs text-primary-foreground/70 bg-primary-foreground/20 px-2 py-0.5 rounded-full">
+                      Patient
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-foreground">{userProfile.name}</p>
-                <p className="text-sm text-muted-foreground">{userProfile.phone}</p>
+              
+              {/* Profile Details */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Phone className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-muted-foreground">{userProfile.phone}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="text-muted-foreground">{userProfile.email}</span>
+                </div>
+                
+                <div className="pt-2 space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                  <Button variant="destructive" size="sm" className="w-full" onClick={onLogout}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
-          <Button variant="destructive" size="sm" className="w-full" onClick={onLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </motion.div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <AlertDialog open={!!cancelBookingId} onOpenChange={() => setCancelBookingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this booking? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => cancelBookingId && handleCancelBooking(cancelBookingId)}
+            >
+              Yes, Cancel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <main className="px-6 py-6 space-y-8">
         {/* Book OP CTA */}
@@ -285,15 +388,26 @@ const UserDashboard = ({ onLogout }: UserDashboardProps) => {
                       {booking.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {booking.date}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {booking.time}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {booking.date}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {booking.time}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setCancelBookingId(booking.id)}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               ))}
