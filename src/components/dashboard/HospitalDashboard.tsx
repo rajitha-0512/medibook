@@ -80,43 +80,9 @@ const HospitalDashboard = ({ onLogout, hospitalProfile, onProfileUpdate }: Hospi
   const [showProfile, setShowProfile] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editedProfile, setEditedProfile] = useState<HospitalProfile>(hospitalProfile);
-  const [doctors, setDoctors] = useState<Doctor[]>([
-    {
-      id: "1",
-      name: "Dr. Sarah Smith",
-      specialization: "Cardiologist",
-      degree: "MBBS, MD, DM (Cardiology)",
-      rating: 4.9,
-      reviews: 234,
-      fee: 800,
-      available: true,
-      slots: [
-        { id: "s1", date: "Jan 16, 2026", time: "10:00 AM", booked: true, patientName: "Rahul Kumar" },
-        { id: "s2", date: "Jan 16, 2026", time: "11:00 AM", booked: false },
-        { id: "s3", date: "Jan 16, 2026", time: "2:00 PM", booked: true, patientName: "Priya Patel" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Dr. Rajesh Kumar",
-      specialization: "Neurologist",
-      degree: "MBBS, MD (Neurology)",
-      rating: 4.7,
-      reviews: 189,
-      fee: 1000,
-      available: true,
-      slots: [
-        { id: "s4", date: "Jan 16, 2026", time: "10:30 AM", booked: false },
-        { id: "s5", date: "Jan 16, 2026", time: "3:00 PM", booked: true, patientName: "Amit Shah" },
-      ],
-    },
-  ]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
 
-  const [appointments] = useState<Appointment[]>([
-    { id: "1", patientName: "Rahul Kumar", patientPhone: "+91 9876543210", doctor: "Dr. Sarah Smith", time: "10:00 AM", status: "confirmed" },
-    { id: "2", patientName: "Priya Patel", patientPhone: "+91 9876543211", doctor: "Dr. Sarah Smith", time: "2:00 PM", status: "pending" },
-    { id: "3", patientName: "Amit Shah", patientPhone: "+91 9876543212", doctor: "Dr. Rajesh Kumar", time: "3:00 PM", status: "delayed" },
-  ]);
+  const [appointments] = useState<Appointment[]>([]);
 
   const [newDoctor, setNewDoctor] = useState({
     name: "",

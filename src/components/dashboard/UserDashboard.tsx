@@ -85,35 +85,8 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
   const [editedProfile, setEditedProfile] = useState<UserProfile>(userProfile);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
-  const [currentBookings, setCurrentBookings] = useState<CurrentBooking[]>([
-    {
-      id: "1",
-      hospital: "Apollo Hospital",
-      doctor: "Dr. Sarah Smith",
-      date: "Jan 15, 2026",
-      time: "10:30 AM",
-      status: "confirmed",
-    },
-  ]);
-
-  const recentBookings = [
-    {
-      id: "2",
-      hospital: "Max Healthcare",
-      doctor: "Dr. John Wilson",
-      date: "Jan 10, 2026",
-      time: "2:00 PM",
-      status: "completed",
-    },
-    {
-      id: "3",
-      hospital: "Fortis Hospital",
-      doctor: "Dr. Priya Patel",
-      date: "Jan 5, 2026",
-      time: "11:00 AM",
-      status: "completed",
-    },
-  ];
+  const [currentBookings, setCurrentBookings] = useState<CurrentBooking[]>([]);
+  const [recentBookings] = useState<CurrentBooking[]>([]);
 
   const handleCancelBooking = (bookingId: string) => {
     setCurrentBookings(prev => prev.filter(b => b.id !== bookingId));
