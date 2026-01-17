@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, MapPin, Star, Clock, Users, Stethoscope, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { format, addDays } from "date-fns";
 
 interface Hospital {
   id: string;
@@ -39,6 +40,33 @@ interface HospitalDetailsProps {
   onDoctorSelect: (doctor: Doctor) => void;
 }
 
+// Helper function to generate slots starting from tomorrow
+const generateSlots = (doctorId: string, availabilityPattern: boolean[]): Slot[] => {
+  const times = ["10:00 AM", "11:30 AM", "2:00 PM", "3:30 PM"];
+  const slots: Slot[] = [];
+  let slotIndex = 0;
+  
+  // Generate slots for the next 3 days starting from tomorrow
+  for (let day = 1; day <= 3; day++) {
+    const date = addDays(new Date(), day);
+    const dateStr = format(date, "MMM dd, yyyy");
+    
+    times.forEach((time) => {
+      if (slotIndex < availabilityPattern.length) {
+        slots.push({
+          id: `${doctorId}-s${slotIndex + 1}`,
+          time,
+          date: dateStr,
+          available: availabilityPattern[slotIndex],
+        });
+        slotIndex++;
+      }
+    });
+  }
+  
+  return slots;
+};
+
 export const mockDoctors: Doctor[] = [
   {
     id: "1",
@@ -50,15 +78,8 @@ export const mockDoctors: Doctor[] = [
     fee: 800,
     available: true,
     availableSlots: 5,
-    nextAvailable: "Today, 2:00 PM",
-    slots: [
-      { id: "s1", time: "10:00 AM", date: "Jan 16, 2026", available: true },
-      { id: "s2", time: "11:30 AM", date: "Jan 16, 2026", available: true },
-      { id: "s3", time: "2:00 PM", date: "Jan 16, 2026", available: false },
-      { id: "s4", time: "3:30 PM", date: "Jan 16, 2026", available: true },
-      { id: "s5", time: "10:00 AM", date: "Jan 17, 2026", available: true },
-      { id: "s6", time: "2:00 PM", date: "Jan 17, 2026", available: true },
-    ],
+    nextAvailable: `Tomorrow, 10:00 AM`,
+    slots: generateSlots("1", [true, true, false, true, true, true, false, true, true, false, true, true]),
   },
   {
     id: "2",
@@ -70,12 +91,8 @@ export const mockDoctors: Doctor[] = [
     fee: 1000,
     available: true,
     availableSlots: 2,
-    nextAvailable: "Tomorrow, 10:00 AM",
-    slots: [
-      { id: "s7", time: "10:00 AM", date: "Jan 17, 2026", available: true },
-      { id: "s8", time: "11:30 AM", date: "Jan 17, 2026", available: false },
-      { id: "s9", time: "3:00 PM", date: "Jan 17, 2026", available: true },
-    ],
+    nextAvailable: `Tomorrow, 10:00 AM`,
+    slots: generateSlots("2", [true, false, true, false, true, true, false, false, true, true, false, true]),
   },
   {
     id: "3",
@@ -87,11 +104,8 @@ export const mockDoctors: Doctor[] = [
     fee: 900,
     available: false,
     availableSlots: 0,
-    nextAvailable: "Jan 18, 2026",
-    slots: [
-      { id: "s10", time: "10:00 AM", date: "Jan 18, 2026", available: false },
-      { id: "s11", time: "2:00 PM", date: "Jan 18, 2026", available: false },
-    ],
+    nextAvailable: format(addDays(new Date(), 3), "MMM dd, yyyy"),
+    slots: generateSlots("3", [false, false, false, false, false, false, false, false, false, false, false, false]),
   },
 ];
 
