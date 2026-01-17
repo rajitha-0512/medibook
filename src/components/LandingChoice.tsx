@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Building2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import logo from "@/assets/logo.png";
 
 interface LandingChoiceProps {
   onUserClick: () => void;
@@ -10,35 +9,6 @@ interface LandingChoiceProps {
 }
 
 const LandingChoice = ({ onUserClick, onHospitalClick }: LandingChoiceProps) => {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Try to get cached logo or generate new one
-    const cachedLogo = sessionStorage.getItem("medibook-logo");
-    if (cachedLogo) {
-      setLogoUrl(cachedLogo);
-    } else {
-      generateLogo();
-    }
-  }, []);
-
-  const generateLogo = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-logo", {
-        body: {
-          prompt: "Generate a modern healthcare mobile app logo icon. Feature a stylized medical cross combined elegantly with a heart shape. Use a beautiful teal to cyan gradient. Ultra clean minimalist design with smooth curves. Square format, professional app icon style, centered on pure white background. No text, just the icon symbol."
-        }
-      });
-
-      if (!error && data?.imageUrl) {
-        setLogoUrl(data.imageUrl);
-        sessionStorage.setItem("medibook-logo", data.imageUrl);
-      }
-    } catch (error) {
-      console.error("Error generating logo:", error);
-    }
-  };
-
   return (
     <div className="min-h-screen gradient-hero flex flex-col items-center justify-center px-6 py-12">
       <motion.div
@@ -54,13 +24,7 @@ const LandingChoice = ({ onUserClick, onHospitalClick }: LandingChoiceProps) => 
           animate={{ scale: 1 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          {logoUrl ? (
-            <img src={logoUrl} alt="MediBook" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full gradient-primary flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">M</span>
-            </div>
-          )}
+          <img src={logo} alt="MediBook" className="w-full h-full object-cover" />
         </motion.div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-gradient-primary mb-2">
           MediBook
