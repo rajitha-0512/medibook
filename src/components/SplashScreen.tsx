@@ -1,47 +1,11 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import logo from "@/assets/logo.png";
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const generateLogo = async (retries = 2) => {
-      try {
-        const { data, error } = await supabase.functions.invoke("generate-logo", {
-          body: {
-            prompt: "Generate a modern healthcare mobile app logo icon. Feature a stylized medical cross combined elegantly with a heart shape. Use a beautiful teal to cyan gradient. Ultra clean minimalist design with smooth curves. Square format, professional app icon style, centered on pure white background. No text, just the icon symbol."
-          }
-        });
-
-        if (error) throw error;
-        if (data?.imageUrl) {
-          setLogoUrl(data.imageUrl);
-        } else if (retries > 0) {
-          console.log("No image returned, retrying...", retries);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return generateLogo(retries - 1);
-        }
-      } catch (error) {
-        console.error("Error generating logo:", error);
-        if (retries > 0) {
-          console.log("Error occurred, retrying...", retries);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return generateLogo(retries - 1);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    generateLogo();
-  }, []);
-
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center gradient-hero"
@@ -68,19 +32,11 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           animate={{ rotate: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          {isLoading ? (
-            <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-          ) : logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="MediBook Logo"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-20 h-20 gradient-primary rounded-2xl flex items-center justify-center">
-              <span className="text-4xl font-bold text-primary-foreground">M</span>
-            </div>
-          )}
+          <img
+            src={logo}
+            alt="MediBook Logo"
+            className="w-full h-full object-cover"
+          />
         </motion.div>
         <motion.div
           className="text-center"
