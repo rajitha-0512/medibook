@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, QrCode, Smartphone, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, QrCode, Smartphone, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 
 interface Doctor {
   id: string;
@@ -19,11 +20,39 @@ interface QRPaymentProps {
   doctor: Doctor;
   slot: Slot;
   hospitalName: string;
+  upiId?: string;
   onBack: () => void;
   onPaymentComplete: (success: boolean) => void;
 }
 
-const QRPayment = ({ doctor, slot, hospitalName, onBack, onPaymentComplete }: QRPaymentProps) => {
+const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplete }: QRPaymentProps) => {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationProgress, setVerificationProgress] = useState(0);
+
+  // Generate UPI QR code URL
+  const upiLink = `upi://pay?pa=${upiId || "hospital@upi"}&pn=${encodeURIComponent(hospitalName)}&am=${doctor.fee}&cu=INR&tn=${encodeURIComponent(`Appointment with ${doctor.name}`)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
+
+  const handlePaymentConfirm = () => {
+    setIsVerifying(true);
+    setVerificationProgress(0);
+  };
+
+  useEffect(() => {
+    if (isVerifying) {
+      const interval = setInterval(() => {
+        setVerificationProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            onPaymentComplete(true);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isVerifying, onPaymentComplete]);
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -89,54 +118,62 @@ const QRPayment = ({ doctor, slot, hospitalName, onBack, onPaymentComplete }: QR
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <QrCode className="w-6 h-6 text-primary" />
-            <h3 className="text-lg font-bold text-foreground">Scan to Pay</h3>
-          </div>
-
-          {/* QR Code Placeholder */}
-          <div className="w-48 h-48 mx-auto mb-6 bg-secondary rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30">
-            <div className="text-center">
-              <div className="w-36 h-36 bg-foreground/5 rounded-lg flex items-center justify-center p-4">
-                <div className="grid grid-cols-5 gap-1">
-                  {[...Array(25)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-5 h-5 rounded-sm ${
-                        Math.random() > 0.4 ? "bg-foreground" : "bg-transparent"
-                      }`}
-                    />
-                  ))}
-                </div>
+          {isVerifying ? (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
+              <h3 className="text-lg font-bold text-foreground">Verifying Payment...</h3>
+              <p className="text-sm text-muted-foreground">Please wait while we confirm your payment</p>
+              <div className="w-full bg-secondary rounded-full h-2 mt-4">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${verificationProgress}%` }}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">{verificationProgress}% completed</p>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <QrCode className="w-6 h-6 text-primary" />
+                <h3 className="text-lg font-bold text-foreground">Scan to Pay</h3>
+              </div>
 
-          <div className="flex items-center justify-center gap-2 text-muted-foreground mb-6">
-            <Smartphone className="w-4 h-4" />
-            <p className="text-sm">Scan with any UPI app</p>
-          </div>
+              {/* Real QR Code */}
+              <div className="w-52 h-52 mx-auto mb-6 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30 p-2">
+                <img 
+                  src={qrCodeUrl} 
+                  alt="UPI QR Code" 
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
 
-          <div className="flex gap-4">
-            <Button
-              variant="destructive"
-              size="lg"
-              className="flex-1"
-              onClick={() => onPaymentComplete(false)}
-            >
-              <XCircle className="w-5 h-5 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              variant="success"
-              size="lg"
-              className="flex-1"
-              onClick={() => onPaymentComplete(true)}
-            >
-              <CheckCircle className="w-5 h-5 mr-2" />
-              I've Paid
-            </Button>
-          </div>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground mb-6">
+                <Smartphone className="w-4 h-4" />
+                <p className="text-sm">Scan with any UPI app</p>
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  variant="destructive"
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => onPaymentComplete(false)}
+                >
+                  <XCircle className="w-5 h-5 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="success"
+                  size="lg"
+                  className="flex-1"
+                  onClick={handlePaymentConfirm}
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  I've Paid
+                </Button>
+              </div>
+            </>
+          )}
         </motion.div>
       </motion.div>
     </div>
