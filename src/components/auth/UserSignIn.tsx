@@ -4,11 +4,13 @@ import { ArrowLeft, Eye, EyeOff, Phone, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UserProfile } from "@/types/user";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface UserSignInProps {
   onBack: () => void;
-  onSignInSuccess: () => void;
+  onSignInSuccess: (userData: UserProfile) => void;
 }
 
 const UserSignIn = ({ onBack, onSignInSuccess }: UserSignInProps) => {
@@ -22,7 +24,20 @@ const UserSignIn = ({ onBack, onSignInSuccess }: UserSignInProps) => {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (phone && password) {
-      onSignInSuccess();
+      const users = JSON.parse(localStorage.getItem("medibook-users") || "{}");
+      const user = users[phone];
+      if (user && user.password === password) {
+        onSignInSuccess({
+          name: user.name,
+          age: user.age,
+          gender: user.gender,
+          phone: user.phone,
+          email: user.email,
+          avatar: user.avatar,
+        });
+      } else {
+        toast.error("Invalid phone number or password");
+      }
     }
   };
 

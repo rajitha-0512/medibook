@@ -44,12 +44,18 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (Object.values(formData).every((val) => val.trim() !== "")) {
-      onRegisterSuccess({
+      const userData: UserProfile = {
         name: formData.name,
         age: formData.age,
         gender: formData.gender,
         phone: formData.phone,
-      });
+      };
+      // Persist to localStorage keyed by phone number
+      const users = JSON.parse(localStorage.getItem("medibook-users") || "{}");
+      users[formData.phone] = { ...userData, password: formData.password };
+      localStorage.setItem("medibook-users", JSON.stringify(users));
+      
+      onRegisterSuccess(userData);
     }
   };
 

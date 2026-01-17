@@ -32,13 +32,19 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (Object.values(formData).every((val) => val.trim() !== "")) {
-      onRegisterSuccess({
+      const hospitalData: HospitalProfile = {
         hospitalName: formData.hospitalName,
         mobileNumber: formData.mobileNumber,
         hospitalCode: formData.hospitalCode,
         location: formData.location,
         qrDetails: formData.qrDetails,
-      });
+      };
+      // Persist to localStorage keyed by hospital code
+      const hospitals = JSON.parse(localStorage.getItem("medibook-hospitals") || "{}");
+      hospitals[formData.hospitalCode] = { ...hospitalData, password: formData.password };
+      localStorage.setItem("medibook-hospitals", JSON.stringify(hospitals));
+      
+      onRegisterSuccess(hospitalData);
     }
   };
 
