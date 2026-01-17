@@ -4,11 +4,13 @@ import { ArrowLeft, Eye, EyeOff, Hash, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { HospitalProfile } from "@/types/user";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface HospitalSignInProps {
   onBack: () => void;
-  onSignInSuccess: () => void;
+  onSignInSuccess: (hospitalData: HospitalProfile) => void;
 }
 
 const HospitalSignIn = ({ onBack, onSignInSuccess }: HospitalSignInProps) => {
@@ -19,7 +21,19 @@ const HospitalSignIn = ({ onBack, onSignInSuccess }: HospitalSignInProps) => {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (hospitalId && password) {
-      onSignInSuccess();
+      const hospitals = JSON.parse(localStorage.getItem("medibook-hospitals") || "{}");
+      const hospital = hospitals[hospitalId];
+      if (hospital && hospital.password === password) {
+        onSignInSuccess({
+          hospitalName: hospital.hospitalName,
+          mobileNumber: hospital.mobileNumber,
+          hospitalCode: hospital.hospitalCode,
+          location: hospital.location,
+          qrDetails: hospital.qrDetails,
+        });
+      } else {
+        toast.error("Invalid hospital ID or password");
+      }
     }
   };
 

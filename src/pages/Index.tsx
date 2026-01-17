@@ -142,7 +142,7 @@ const Index = () => {
           <UserSignIn
             key="userSignIn"
             onBack={handleBackToUserAuth}
-            onSignInSuccess={() => handleUserAuthSuccess()}
+            onSignInSuccess={(userData) => handleUserAuthSuccess(userData)}
           />
         )}
 
@@ -167,7 +167,7 @@ const Index = () => {
           <HospitalSignIn
             key="hospitalSignIn"
             onBack={handleBackToHospitalAuth}
-            onSignInSuccess={() => handleHospitalAuthSuccess()}
+            onSignInSuccess={(hospitalData) => handleHospitalAuthSuccess(hospitalData)}
           />
         )}
 
