@@ -30,33 +30,24 @@ type PaymentState = "scanning" | "verifying" | "success" | "failed";
 const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplete }: QRPaymentProps) => {
   const [paymentState, setPaymentState] = useState<PaymentState>("scanning");
   const [verificationProgress, setVerificationProgress] = useState(0);
-  const [countdown, setCountdown] = useState(30);
 
   // Generate UPI QR code URL
   const upiLink = `upi://pay?pa=${upiId || "hospital@upi"}&pn=${encodeURIComponent(hospitalName)}&am=${doctor.fee}&cu=INR&tn=${encodeURIComponent(`Appointment with ${doctor.name}`)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
 
-  // Simulate waiting for payment (countdown timer)
-  useEffect(() => {
-    if (paymentState === "scanning" && countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (paymentState === "scanning" && countdown === 0) {
-      // Simulate payment received after countdown
-      setPaymentState("verifying");
-    }
-  }, [paymentState, countdown]);
+  // Handle when user confirms they've paid
+  const handlePaymentConfirm = () => {
+    setPaymentState("verifying");
+  };
 
-  // Verification progress
+  // Verification progress - shows success after verification
   useEffect(() => {
     if (paymentState === "verifying") {
       const interval = setInterval(() => {
         setVerificationProgress((prev) => {
           if (prev >= 100) {
             clearInterval(interval);
-            // Simulate random success/failure (90% success rate)
-            const success = Math.random() > 0.1;
-            setPaymentState(success ? "success" : "failed");
+            setPaymentState("success");
             return 100;
           }
           return prev + 10;
@@ -72,7 +63,6 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
 
   const handleRetry = () => {
     setPaymentState("scanning");
-    setCountdown(30);
     setVerificationProgress(0);
   };
 
@@ -168,15 +158,27 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
                 <p className="text-sm">Scan with any UPI app</p>
               </div>
 
-              {/* Waiting indicator */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 text-primary">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm font-medium">Waiting for payment...</span>
+              {/* Waiting indicator with button */}
+              <div className="flex flex-col items-center gap-4 mt-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Waiting for payment...</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Auto-verifying in {countdown}s
-                </p>
+                <Button
+                  className="w-full bg-green-500 hover:bg-green-600"
+                  size="lg"
+                  onClick={handlePaymentConfirm}
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  I've Paid
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  onClick={onBack}
+                >
+                  Cancel
+                </Button>
               </div>
             </>
           )}
