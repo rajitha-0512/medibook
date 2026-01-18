@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, QrCode, Smartphone, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Doctor {
   id: string;
@@ -25,45 +26,96 @@ interface QRPaymentProps {
   onPaymentComplete: (success: boolean) => void;
 }
 
-type PaymentState = "scanning" | "verifying" | "success" | "failed";
+type PaymentState = "scanning" | "success" | "failed";
 
 const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplete }: QRPaymentProps) => {
   const [paymentState, setPaymentState] = useState<PaymentState>("scanning");
-  const [verificationProgress, setVerificationProgress] = useState(0);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Generate UPI QR code URL
   const upiLink = `upi://pay?pa=${upiId || "hospital@upi"}&pn=${encodeURIComponent(hospitalName)}&am=${doctor.fee}&cu=INR&tn=${encodeURIComponent(`Appointment with ${doctor.name}`)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
 
-  // Handle when user confirms they've paid
-  const handlePaymentConfirm = () => {
-    setPaymentState("verifying");
-  };
-
-  // Verification progress - shows success after verification
+  // Create payment record on mount
   useEffect(() => {
-    if (paymentState === "verifying") {
-      const interval = setInterval(() => {
-        setVerificationProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setPaymentState("success");
-            return 100;
-          }
-          return prev + 10;
+    const createPayment = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("verify-payment", {
+          body: {
+            action: "create",
+            doctorName: doctor.name,
+            hospitalName,
+            amount: doctor.fee,
+            slotDate: slot.date,
+            slotTime: slot.time,
+            upiId: upiId || "hospital@upi",
+          },
         });
-      }, 300);
-      return () => clearInterval(interval);
-    }
-  }, [paymentState]);
+
+        if (error) throw error;
+        
+        if (data?.transactionId) {
+          setTransactionId(data.transactionId);
+          console.log("Payment created:", data.transactionId);
+        }
+      } catch (error) {
+        console.error("Error creating payment:", error);
+      }
+    };
+
+    createPayment();
+  }, [doctor, hospitalName, slot, upiId]);
+
+  // Poll for payment status
+  useEffect(() => {
+    if (!transactionId || paymentState !== "scanning") return;
+
+    const checkPaymentStatus = async () => {
+      try {
+        setCheckingPayment(true);
+        const { data, error } = await supabase.functions.invoke("verify-payment", {
+          body: {
+            action: "check",
+            transactionId,
+          },
+        });
+
+        if (error) throw error;
+
+        console.log("Payment status:", data?.status);
+
+        if (data?.status === "success") {
+          setPaymentState("success");
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+          }
+        } else if (data?.status === "failed") {
+          setPaymentState("failed");
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking payment:", error);
+      } finally {
+        setCheckingPayment(false);
+      }
+    };
+
+    // Poll every 3 seconds
+    pollingRef.current = setInterval(checkPaymentStatus, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [transactionId, paymentState]);
 
   const handleContinue = () => {
     onPaymentComplete(paymentState === "success");
-  };
-
-  const handleRetry = () => {
-    setPaymentState("scanning");
-    setVerificationProgress(0);
   };
 
   return (
@@ -158,44 +210,29 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
                 <p className="text-sm">Scan with any UPI app</p>
               </div>
 
-              {/* Waiting indicator with button */}
+              {/* Waiting indicator */}
               <div className="flex flex-col items-center gap-4 mt-2">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Waiting for payment...</span>
+                <div className="flex items-center gap-2 text-primary">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm font-medium">Waiting for payment...</span>
                 </div>
-                <Button
-                  className="w-full bg-green-500 hover:bg-green-600"
-                  size="lg"
-                  onClick={handlePaymentConfirm}
-                >
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  I've Paid
-                </Button>
+                {transactionId && (
+                  <p className="text-xs text-muted-foreground">
+                    Transaction ID: {transactionId}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Payment will be verified automatically
+                </p>
                 <Button
                   variant="ghost"
-                  className="text-muted-foreground"
+                  className="text-muted-foreground mt-4"
                   onClick={onBack}
                 >
                   Cancel
                 </Button>
               </div>
             </>
-          )}
-
-          {paymentState === "verifying" && (
-            <div className="flex flex-col items-center gap-4 py-8">
-              <Loader2 className="w-16 h-16 text-primary animate-spin" />
-              <h3 className="text-lg font-bold text-foreground">Verifying Payment...</h3>
-              <p className="text-sm text-muted-foreground">Please wait while we confirm your payment</p>
-              <div className="w-full bg-secondary rounded-full h-2 mt-4">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${verificationProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">{verificationProgress}% completed</p>
-            </div>
           )}
 
           {paymentState === "success" && (
@@ -234,21 +271,13 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
               </motion.div>
               <h3 className="text-xl font-bold text-foreground">Payment Failed</h3>
               <p className="text-sm text-muted-foreground">We couldn't verify your payment</p>
-              <div className="flex gap-3 w-full mt-4">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => onPaymentComplete(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1"
-                  onClick={handleRetry}
-                >
-                  Retry
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="w-full mt-4"
+                onClick={() => onPaymentComplete(false)}
+              >
+                Go Back
+              </Button>
             </div>
           )}
         </motion.div>

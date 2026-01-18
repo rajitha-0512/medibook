@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          doctor_name: string
+          hospital_name: string
+          id: string
+          slot_date: string
+          slot_time: string
+          status: string
+          transaction_id: string
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          doctor_name: string
+          hospital_name: string
+          id?: string
+          slot_date: string
+          slot_time: string
+          status?: string
+          transaction_id: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          doctor_name?: string
+          hospital_name?: string
+          id?: string
+          slot_date?: string
+          slot_time?: string
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
