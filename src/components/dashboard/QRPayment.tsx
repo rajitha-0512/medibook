@@ -25,34 +25,57 @@ interface QRPaymentProps {
   onPaymentComplete: (success: boolean) => void;
 }
 
+type PaymentState = "scanning" | "verifying" | "success" | "failed";
+
 const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplete }: QRPaymentProps) => {
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [paymentState, setPaymentState] = useState<PaymentState>("scanning");
   const [verificationProgress, setVerificationProgress] = useState(0);
+  const [countdown, setCountdown] = useState(30);
 
   // Generate UPI QR code URL
   const upiLink = `upi://pay?pa=${upiId || "hospital@upi"}&pn=${encodeURIComponent(hospitalName)}&am=${doctor.fee}&cu=INR&tn=${encodeURIComponent(`Appointment with ${doctor.name}`)}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
 
-  const handlePaymentConfirm = () => {
-    setIsVerifying(true);
-    setVerificationProgress(0);
-  };
-
+  // Simulate waiting for payment (countdown timer)
   useEffect(() => {
-    if (isVerifying) {
+    if (paymentState === "scanning" && countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (paymentState === "scanning" && countdown === 0) {
+      // Simulate payment received after countdown
+      setPaymentState("verifying");
+    }
+  }, [paymentState, countdown]);
+
+  // Verification progress
+  useEffect(() => {
+    if (paymentState === "verifying") {
       const interval = setInterval(() => {
         setVerificationProgress((prev) => {
           if (prev >= 100) {
             clearInterval(interval);
-            onPaymentComplete(true);
+            // Simulate random success/failure (90% success rate)
+            const success = Math.random() > 0.1;
+            setPaymentState(success ? "success" : "failed");
             return 100;
           }
           return prev + 10;
         });
-      }, 500);
+      }, 300);
       return () => clearInterval(interval);
     }
-  }, [isVerifying, onPaymentComplete]);
+  }, [paymentState]);
+
+  const handleContinue = () => {
+    onPaymentComplete(paymentState === "success");
+  };
+
+  const handleRetry = () => {
+    setPaymentState("scanning");
+    setCountdown(30);
+    setVerificationProgress(0);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -62,16 +85,22 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onBack}
-            className="text-primary-foreground hover:bg-primary-foreground/20"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
+          {paymentState === "scanning" && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onBack}
+              className="text-primary-foreground hover:bg-primary-foreground/20"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </Button>
+          )}
           <div>
-            <h2 className="text-xl font-bold text-primary-foreground">Complete Payment</h2>
+            <h2 className="text-xl font-bold text-primary-foreground">
+              {paymentState === "success" ? "Payment Successful" : 
+               paymentState === "failed" ? "Payment Failed" : 
+               "Complete Payment"}
+            </h2>
             <p className="text-sm text-primary-foreground/80">{hospitalName}</p>
           </div>
         </div>
@@ -111,14 +140,48 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
           </div>
         </div>
 
-        {/* QR Code Section */}
+        {/* Payment Section */}
         <motion.div
           className="bg-card rounded-2xl p-8 shadow-card border border-border text-center max-w-sm w-full"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          {isVerifying ? (
+          {paymentState === "scanning" && (
+            <>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <QrCode className="w-6 h-6 text-primary" />
+                <h3 className="text-lg font-bold text-foreground">Scan to Pay</h3>
+              </div>
+
+              {/* Real QR Code */}
+              <div className="w-52 h-52 mx-auto mb-4 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30 p-2">
+                <img 
+                  src={qrCodeUrl} 
+                  alt="UPI QR Code" 
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-muted-foreground mb-4">
+                <Smartphone className="w-4 h-4" />
+                <p className="text-sm">Scan with any UPI app</p>
+              </div>
+
+              {/* Waiting indicator */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm font-medium">Waiting for payment...</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Auto-verifying in {countdown}s
+                </p>
+              </div>
+            </>
+          )}
+
+          {paymentState === "verifying" && (
             <div className="flex flex-col items-center gap-4 py-8">
               <Loader2 className="w-16 h-16 text-primary animate-spin" />
               <h3 className="text-lg font-bold text-foreground">Verifying Payment...</h3>
@@ -131,48 +194,60 @@ const QRPayment = ({ doctor, slot, hospitalName, upiId, onBack, onPaymentComplet
               </div>
               <p className="text-xs text-muted-foreground">{verificationProgress}% completed</p>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <QrCode className="w-6 h-6 text-primary" />
-                <h3 className="text-lg font-bold text-foreground">Scan to Pay</h3>
-              </div>
+          )}
 
-              {/* Real QR Code */}
-              <div className="w-52 h-52 mx-auto mb-6 bg-white rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30 p-2">
-                <img 
-                  src={qrCodeUrl} 
-                  alt="UPI QR Code" 
-                  className="w-full h-full object-contain rounded-lg"
-                />
-              </div>
+          {paymentState === "success" && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center"
+              >
+                <CheckCircle className="w-12 h-12 text-green-500" />
+              </motion.div>
+              <h3 className="text-xl font-bold text-foreground">Payment Successful!</h3>
+              <p className="text-sm text-muted-foreground">Your appointment has been booked</p>
+              <div className="text-2xl font-bold text-green-500">₹{doctor.fee}</div>
+              <Button
+                className="w-full mt-4 bg-green-500 hover:bg-green-600"
+                size="lg"
+                onClick={handleContinue}
+              >
+                <CheckCircle className="w-5 h-5 mr-2" />
+                Continue
+              </Button>
+            </div>
+          )}
 
-              <div className="flex items-center justify-center gap-2 text-muted-foreground mb-6">
-                <Smartphone className="w-4 h-4" />
-                <p className="text-sm">Scan with any UPI app</p>
-              </div>
-
-              <div className="flex gap-4">
+          {paymentState === "failed" && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="w-20 h-20 rounded-full bg-destructive/20 flex items-center justify-center"
+              >
+                <XCircle className="w-12 h-12 text-destructive" />
+              </motion.div>
+              <h3 className="text-xl font-bold text-foreground">Payment Failed</h3>
+              <p className="text-sm text-muted-foreground">We couldn't verify your payment</p>
+              <div className="flex gap-3 w-full mt-4">
                 <Button
-                  variant="destructive"
-                  size="lg"
+                  variant="outline"
                   className="flex-1"
                   onClick={() => onPaymentComplete(false)}
                 >
-                  <XCircle className="w-5 h-5 mr-2" />
                   Cancel
                 </Button>
                 <Button
-                  variant="success"
-                  size="lg"
                   className="flex-1"
-                  onClick={handlePaymentConfirm}
+                  onClick={handleRetry}
                 >
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  I've Paid
+                  Retry
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </motion.div>
       </motion.div>
