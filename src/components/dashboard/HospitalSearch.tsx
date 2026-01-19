@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Search, MapPin, Star, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useHospitals } from "@/hooks/useHospitals";
 
 interface Hospital {
   id: string;
@@ -12,6 +13,7 @@ interface Hospital {
   rating: number;
   image: string;
   specialties: string[];
+  upi_id?: string;
 }
 
 interface HospitalSearchProps {
@@ -87,10 +89,25 @@ const specialtyFilters = [
 ];
 
 const HospitalSearch = ({ onBack, onHospitalSelect }: HospitalSearchProps) => {
+  const { hospitals: dbHospitals, loading } = useHospitals();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
 
-  const filteredHospitals = allHospitals.filter((hospital) => {
+  // Map database hospitals to the expected format, or use fallback
+  const hospitals: Hospital[] = dbHospitals.length > 0 
+    ? dbHospitals.map(h => ({
+        id: h.id,
+        name: h.name,
+        location: h.location || "Location not specified",
+        status: (h.status === "open" ? "open" : "closed") as "open" | "closed",
+        rating: h.rating || 4.5,
+        image: h.image || "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=400&h=250&fit=crop",
+        specialties: h.specialties || [],
+        upi_id: h.upi_id || undefined,
+      }))
+    : allHospitals;
+
+  const filteredHospitals = hospitals.filter((hospital) => {
     const matchesSearch =
       hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       hospital.location.toLowerCase().includes(searchQuery.toLowerCase()) ||

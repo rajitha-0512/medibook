@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope, X, Phone, Mail, Edit2, Save } from "lucide-react";
+import { User, Calendar, Clock, Search, LogOut, Star, ChevronRight, Stethoscope, X, Phone, Mail, Edit2, Save, CalendarX, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,8 @@ import HospitalDetails, { Doctor } from "./HospitalDetails";
 import SlotSelection from "./SlotSelection";
 import QRPayment from "./QRPayment";
 import PaymentStatus from "./PaymentStatus";
+import { useBookings } from "@/hooks/useBookings";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UserDashboardProps {
   onLogout: () => void;
@@ -47,6 +49,7 @@ interface Hospital {
   rating: number;
   image: string;
   specialties: string[];
+  upi_id?: string;
 }
 
 interface Slot {
@@ -63,18 +66,15 @@ interface BookingDetails {
   time: string;
   hospitalName: string;
   fee: number;
-}
-
-interface CurrentBooking {
-  id: string;
-  hospital: string;
-  doctor: string;
-  date: string;
-  time: string;
-  status: string;
+  hospitalId: string;
+  doctorId: string;
+  slotId?: string;
 }
 
 const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboardProps) => {
+  const { user } = useAuth();
+  const { currentBookings, recentBookings, loading: bookingsLoading, cancelBooking, createBooking } = useBookings(user?.id || null);
+  
   const [view, setView] = useState<View>("dashboard");
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -85,13 +85,15 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
   const [editedProfile, setEditedProfile] = useState<UserProfile>(userProfile);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
-  const [currentBookings, setCurrentBookings] = useState<CurrentBooking[]>([]);
-  const [recentBookings] = useState<CurrentBooking[]>([]);
 
-  const handleCancelBooking = (bookingId: string) => {
-    setCurrentBookings(prev => prev.filter(b => b.id !== bookingId));
+  const handleCancelBooking = async (bookingId: string) => {
+    const success = await cancelBooking(bookingId);
     setCancelBookingId(null);
-    toast.success("Booking cancelled successfully");
+    if (success) {
+      toast.success("Booking cancelled successfully");
+    } else {
+      toast.error("Failed to cancel booking");
+    }
   };
 
   const handleSaveProfile = () => {
@@ -116,15 +118,32 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
     setView("payment");
   };
 
-  const handlePaymentComplete = (success: boolean) => {
+  const handlePaymentComplete = async (success: boolean) => {
     setPaymentSuccess(success);
     if (success && selectedDoctor && selectedSlot && selectedHospital) {
-      setBookingDetails({
+      const details: BookingDetails = {
         doctorName: selectedDoctor.name,
         specialization: selectedDoctor.specialization,
         date: selectedSlot.date,
         time: selectedSlot.time,
         hospitalName: selectedHospital.name,
+        fee: selectedDoctor.fee,
+        hospitalId: selectedHospital.id,
+        doctorId: selectedDoctor.id,
+        slotId: selectedSlot.id,
+      };
+      setBookingDetails(details);
+      
+      // Save booking to database
+      await createBooking({
+        hospital_id: selectedHospital.id,
+        doctor_id: selectedDoctor.id,
+        slot_id: selectedSlot.id,
+        hospital_name: selectedHospital.name,
+        doctor_name: selectedDoctor.name,
+        specialization: selectedDoctor.specialization,
+        slot_date: selectedSlot.date,
+        slot_time: selectedSlot.time,
         fee: selectedDoctor.fee,
       });
     }
@@ -181,6 +200,7 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
         doctor={selectedDoctor}
         slot={selectedSlot}
         hospitalName={selectedHospital.name}
+        upiId={selectedHospital.upi_id}
         onBack={() => setView("slotSelection")}
         onPaymentComplete={handlePaymentComplete}
       />
@@ -440,16 +460,22 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
         </motion.div>
 
         {/* Current Bookings */}
-        {currentBookings.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-primary" />
-              Current Bookings
-            </h3>
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Current Bookings
+          </h3>
+          {currentBookings.length === 0 ? (
+            <div className="bg-card rounded-xl p-6 border border-dashed border-border text-center">
+              <CalendarX className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-muted-foreground">No upcoming appointments</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">Book an OP to see your appointments here</p>
+            </div>
+          ) : (
             <div className="space-y-3">
               {currentBookings.map((booking) => (
                 <div
@@ -458,10 +484,10 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold text-foreground">{booking.hospital}</h4>
-                      <p className="text-sm text-muted-foreground">{booking.doctor}</p>
+                      <h4 className="font-semibold text-foreground">{booking.hospital_name}</h4>
+                      <p className="text-sm text-muted-foreground">{booking.doctor_name}</p>
                     </div>
-                    <span className="px-3 py-1 bg-success/10 text-success text-xs font-medium rounded-full">
+                    <span className="px-3 py-1 bg-success/10 text-success text-xs font-medium rounded-full capitalize">
                       {booking.status}
                     </span>
                   </div>
@@ -469,11 +495,11 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {booking.date}
+                        {booking.slot_date}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        {booking.time}
+                        {booking.slot_time}
                       </span>
                     </div>
                     <Button
@@ -489,8 +515,8 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
                 </div>
               ))}
             </div>
-          </motion.section>
-        )}
+          )}
+        </motion.section>
 
         {/* Famous Hospitals Carousel */}
         <motion.section
@@ -506,16 +532,22 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
         </motion.section>
 
         {/* Recent Bookings */}
-        {recentBookings.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-muted-foreground" />
-              Recent Bookings
-            </h3>
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <History className="w-5 h-5 text-muted-foreground" />
+            Recent Bookings
+          </h3>
+          {recentBookings.length === 0 ? (
+            <div className="bg-card rounded-xl p-6 border border-dashed border-border text-center">
+              <History className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-muted-foreground">No past appointments</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">Your booking history will appear here</p>
+            </div>
+          ) : (
             <div className="space-y-3">
               {recentBookings.map((booking) => (
                 <div
@@ -523,18 +555,23 @@ const UserDashboard = ({ onLogout, userProfile, onProfileUpdate }: UserDashboard
                   className="bg-card rounded-xl p-4 border border-border flex justify-between items-center"
                 >
                   <div>
-                    <h4 className="font-medium text-foreground">{booking.hospital}</h4>
-                    <p className="text-sm text-muted-foreground">{booking.doctor}</p>
+                    <h4 className="font-medium text-foreground">{booking.hospital_name}</h4>
+                    <p className="text-sm text-muted-foreground">{booking.doctor_name}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {booking.date} at {booking.time}
+                      {booking.slot_date} at {booking.slot_time}
                     </p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground capitalize">
+                      {booking.status}
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
                 </div>
               ))}
             </div>
-          </motion.section>
-        )}
+          )}
+        </motion.section>
       </main>
     </div>
   );

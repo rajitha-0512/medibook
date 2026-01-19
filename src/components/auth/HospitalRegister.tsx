@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Building2, Phone, MapPin, QrCode, Hash, Eye, EyeOff, Lock } from "lucide-react";
+import { ArrowLeft, Building2, Phone, MapPin, QrCode, Hash, Eye, EyeOff, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HospitalProfile } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface HospitalRegisterProps {
@@ -15,6 +17,7 @@ interface HospitalRegisterProps {
 
 const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     hospitalName: "",
     mobileNumber: "",
@@ -29,22 +32,72 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (Object.values(formData).every((val) => val.trim() !== "")) {
-      const hospitalData: HospitalProfile = {
-        hospitalName: formData.hospitalName,
-        mobileNumber: formData.mobileNumber,
-        hospitalCode: formData.hospitalCode,
-        location: formData.location,
-        qrDetails: formData.qrDetails,
-      };
-      // Persist to localStorage keyed by hospital code
-      const hospitals = JSON.parse(localStorage.getItem("medibook-hospitals") || "{}");
-      hospitals[formData.hospitalCode] = { ...hospitalData, password: formData.password };
-      localStorage.setItem("medibook-hospitals", JSON.stringify(hospitals));
-      
-      onRegisterSuccess(hospitalData);
+    
+    if (!Object.values(formData).every((val) => val.trim() !== "")) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Create email from hospital code for auth
+      const email = `${formData.hospitalCode}@medibook.hospital`;
+
+      // Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create hospital in database
+        const { error: hospitalError } = await supabase
+          .from("hospitals")
+          .insert({
+            user_id: authData.user.id,
+            name: formData.hospitalName,
+            mobile_number: formData.mobileNumber,
+            hospital_code: formData.hospitalCode,
+            location: formData.location,
+            upi_id: formData.qrDetails,
+          });
+
+        if (hospitalError) {
+          console.error("Hospital error:", hospitalError);
+          if (hospitalError.message?.includes("duplicate")) {
+            toast.error("This hospital code is already registered.");
+            return;
+          }
+        }
+
+        const hospitalData: HospitalProfile = {
+          hospitalName: formData.hospitalName,
+          mobileNumber: formData.mobileNumber,
+          hospitalCode: formData.hospitalCode,
+          location: formData.location,
+          qrDetails: formData.qrDetails,
+        };
+
+        toast.success("Hospital registered successfully!");
+        onRegisterSuccess(hospitalData);
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      if (error.message?.includes("already registered")) {
+        toast.error("This hospital is already registered. Please sign in.");
+      } else {
+        toast.error(error.message || "Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,7 +109,7 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
         animate={{ opacity: 1, x: 0 }}
         className="flex items-center gap-4 mb-6"
       >
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" onClick={onBack} disabled={loading}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
         <h2 className="text-xl font-bold text-foreground">Hospital Registration</h2>
@@ -90,6 +143,7 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -109,6 +163,7 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -127,6 +182,7 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -145,24 +201,26 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="qrDetails" className="text-foreground font-medium">
-              QR Payment Details
+              UPI ID (for payments)
             </Label>
             <div className="relative">
               <QrCode className="absolute left-4 top-4 w-5 h-5 text-muted-foreground" />
               <Textarea
                 id="qrDetails"
                 name="qrDetails"
-                placeholder="Enter UPI ID or payment QR details"
+                placeholder="Enter UPI ID (e.g., hospital@upi)"
                 value={formData.qrDetails}
                 onChange={handleChange}
                 className="pl-12 min-h-[80px] bg-card border-border resize-none"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -182,6 +240,7 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
                 onChange={handleChange}
                 className="pl-12 pr-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
@@ -193,8 +252,15 @@ const HospitalRegister = ({ onBack, onRegisterSuccess }: HospitalRegisterProps) 
             </div>
           </div>
 
-          <Button type="submit" variant="hero" size="lg" className="w-full mt-6">
-            Register Hospital
+          <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Registering...
+              </>
+            ) : (
+              "Register Hospital"
+            )}
           </Button>
         </form>
       </motion.div>

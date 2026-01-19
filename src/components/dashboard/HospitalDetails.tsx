@@ -11,6 +11,7 @@ interface Hospital {
   rating: number;
   image: string;
   specialties: string[];
+  upi_id?: string;
 }
 
 interface Slot {
