@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Star, MapPin } from "lucide-react";
+import { useHospitals } from "@/hooks/useHospitals";
 
 interface Hospital {
   id: string;
@@ -9,13 +10,15 @@ interface Hospital {
   rating: number;
   image: string;
   specialties: string[];
+  upi_id?: string;
 }
 
 interface HospitalCarouselProps {
   onHospitalSelect: (hospital: Hospital) => void;
 }
 
-const famousHospitals: Hospital[] = [
+// Fallback hospitals if database is empty
+const fallbackHospitals: Hospital[] = [
   {
     id: "1",
     name: "Apollo Hospital",
@@ -64,8 +67,34 @@ const famousHospitals: Hospital[] = [
 ];
 
 const HospitalCarousel = ({ onHospitalSelect }: HospitalCarouselProps) => {
+  const { hospitals: dbHospitals, loading } = useHospitals();
+  
+  // Map database hospitals to the expected format, or use fallback
+  const hospitals: Hospital[] = dbHospitals.length > 0 
+    ? dbHospitals.map(h => ({
+        id: h.id,
+        name: h.name,
+        location: h.location || "Location not specified",
+        status: (h.status === "open" ? "open" : "closed") as "open" | "closed",
+        rating: h.rating || 4.5,
+        image: h.image || "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=400&h=250&fit=crop",
+        specialties: h.specialties || [],
+        upi_id: h.upi_id || undefined,
+      }))
+    : fallbackHospitals;
+  
   // Duplicate hospitals for seamless scrolling
-  const duplicatedHospitals = [...famousHospitals, ...famousHospitals];
+  const duplicatedHospitals = [...hospitals, ...hospitals];
+
+  if (loading) {
+    return (
+      <div className="flex gap-4 px-6 overflow-hidden">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex-shrink-0 w-72 h-48 bg-card rounded-2xl animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="relative overflow-hidden -mx-6">

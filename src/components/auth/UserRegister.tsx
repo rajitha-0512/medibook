@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, EyeOff, Phone, Lock, User, Calendar } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Phone, Lock, User, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UserProfile } from "@/types/user";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 interface UserRegisterProps {
@@ -15,6 +17,7 @@ interface UserRegisterProps {
 
 const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -41,21 +44,68 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
     setFormData((prev) => ({ ...prev, gender: value }));
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (Object.values(formData).every((val) => val.trim() !== "")) {
-      const userData: UserProfile = {
-        name: formData.name,
-        age: formData.age,
-        gender: formData.gender,
-        phone: formData.phone,
-      };
-      // Persist to localStorage keyed by phone number
-      const users = JSON.parse(localStorage.getItem("medibook-users") || "{}");
-      users[formData.phone] = { ...userData, password: formData.password };
-      localStorage.setItem("medibook-users", JSON.stringify(users));
-      
-      onRegisterSuccess(userData);
+    
+    if (!Object.values(formData).every((val) => val.trim() !== "")) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Create email from phone number for auth
+      const email = `${formData.phone}@medibook.user`;
+
+      // Sign up with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create profile in database
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            user_id: authData.user.id,
+            name: formData.name,
+            age: formData.age,
+            gender: formData.gender,
+            phone: formData.phone,
+          });
+
+        if (profileError) {
+          console.error("Profile error:", profileError);
+          // If profile creation fails, we still have the auth account
+          // Just log the error but proceed
+        }
+
+        const userData: UserProfile = {
+          name: formData.name,
+          age: formData.age,
+          gender: formData.gender,
+          phone: formData.phone,
+        };
+
+        toast.success("Registration successful!");
+        onRegisterSuccess(userData);
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      if (error.message?.includes("already registered")) {
+        toast.error("This phone number is already registered. Please sign in.");
+      } else {
+        toast.error(error.message || "Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,7 +117,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
         animate={{ opacity: 1, x: 0 }}
         className="flex items-center gap-4 mb-6"
       >
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" onClick={onBack} disabled={loading}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
         <h2 className="text-xl font-bold text-foreground">User Registration</h2>
@@ -101,6 +151,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -122,6 +173,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -130,7 +182,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
             <Label htmlFor="gender" className="text-foreground font-medium">
               Gender
             </Label>
-            <Select value={formData.gender} onValueChange={handleGenderChange}>
+            <Select value={formData.gender} onValueChange={handleGenderChange} disabled={loading}>
               <SelectTrigger className="h-12 bg-card border-border">
                 <SelectValue placeholder="Select your gender" />
               </SelectTrigger>
@@ -157,6 +209,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
                 onChange={handleChange}
                 className="pl-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
             </div>
           </div>
@@ -170,6 +223,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
                 type="button"
                 onClick={generatePassword}
                 className="text-primary font-medium text-sm hover:underline"
+                disabled={loading}
               >
                 Generate Password
               </button>
@@ -185,6 +239,7 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
                 onChange={handleChange}
                 className="pl-12 pr-12 h-12 bg-card border-border"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
@@ -196,8 +251,15 @@ const UserRegister = ({ onBack, onRegisterSuccess }: UserRegisterProps) => {
             </div>
           </div>
 
-          <Button type="submit" variant="hero" size="lg" className="w-full mt-6">
-            Register
+          <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Registering...
+              </>
+            ) : (
+              "Register"
+            )}
           </Button>
         </form>
       </motion.div>
